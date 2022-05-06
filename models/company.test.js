@@ -85,12 +85,9 @@ describe("findAll", function () {
       },
     ]);
   });
-});
 
-/************************************** search */
-describe("search", function() {
   test("works: all parameters", async function () {
-    let companies = await Company.search('c', 1, 3);
+    let companies = await Company.findAll({ name: 'c', minEmployees: 1, maxEmployees: 3 });
     expect(companies).toEqual([
       {
         handle: "c1",
@@ -117,7 +114,7 @@ describe("search", function() {
   });
 
   test("only name given", async function () {
-    let company = await Company.search('C1', null, null);
+    let company = await Company.findAll({name: 'C1'});
     expect(company).toEqual([
       {
         handle: "c1",
@@ -130,7 +127,7 @@ describe("search", function() {
   });
 
   test("min employees given", async function () {
-    let companies = await Company.search(null,2,null);
+    let companies = await Company.findAll({ minEmployees: 2});
     expect(companies).toEqual([
       {
         handle: "c2",
@@ -151,16 +148,7 @@ describe("search", function() {
 
   test("min more than max", async function () {
     try {
-      let companies = await Company.search(null, 3, 1);
-      fail()
-    } catch(err) {
-      expect(err instanceof BadRequestError).toBeTruthy();
-    }
-  });
-
-  test("no parameters given", async function () {
-    try {
-      let companies = await Company.search();
+      let companies = await Company.findAll({ minEmployees: 3, maxEmployees: 1 });
       fail()
     } catch(err) {
       expect(err instanceof BadRequestError).toBeTruthy();

@@ -50,57 +50,44 @@ class Company {
    * Returns [{ handle, name, description, numEmployees, logoUrl }, ...]
    * */
 
-  static async findAll() {
-    const companiesRes = await db.query(
-          `SELECT handle,
-                  name,
-                  description,
-                  num_employees AS "numEmployees",
-                  logo_url AS "logoUrl"
-           FROM companies
-           ORDER BY name`);
-    return companiesRes.rows;
-  }
-
-  /** Find companies based on name, min number of employees, and/or max number of employees.
-   *
-   * Returns [{ handle, name, description, numEmployees, logoUrl }, ...]
-   * 
-   * Throws BadRequestError if minEmployees is greater than maxEmployees or if no search criteria is given.
-   * */
-  static async search(nameLike=null, minEmployees=null, maxEmployees=null) {
+  static async findAll(searchFilters = {}) {
     let queryStr = `SELECT handle,
-                             name,
-                             description,
-                             num_employees AS "numEmployees",
-                             logo_url AS "logoUrl"
-                      FROM companies 
-                      WHERE `;
-    let filterStr = [];
-    
-    if (nameLike) {
-      const str = `name LIKE '%${nameLike}%'`;
-      filterStr.push(str);
-    }
-    if (minEmployees) {
-      const str = `num_employees >= ${minEmployees}`;
-      filterStr.push(str);
-    }
-    if (maxEmployees) {
-      const str = `num_employees <= ${maxEmployees}`;
-      filterStr.push(str);
-    }
-    if (minEmployees && maxEmployees) {
-      if (minEmployees > maxEmployees) {throw new BadRequestError(`minEmployees:${minEmployees} greater than maxEmployees: ${maxEmployees}.`)}
-    }
-    if (!nameLike && !minEmployees && !maxEmployees) {
-      throw new BadRequestError("No search parameters provided.");
+                           name,
+                           description,
+                           num_employees AS "numEmployees",
+                           logo_url AS "logoUrl"
+                           FROM companies`;
+    let filterStrings = [];
+    let filterValues = [];
+
+    const { minEmployees, maxEmployees, name } = searchFilters;
+
+    if (minEmployees > maxEmployees) {
+      throw new BadRequestError(`minEmployees:${minEmployees} greater than maxEmployees: ${maxEmployees}.`)
     }
 
-    queryStr = queryStr + filterStr.join(" AND ");
+    if (minEmployees !== undefined) {
+      filterValues.push(minEmployees);
+      filterStrings.push(`num_employees >= $${filterValues.length}`);
+    }
 
-    const companiesRes = await db.query(queryStr);
-    return companiesRes.rows; 
+    if (maxEmployees !== undefined) {
+      filterValues.push(maxEmployees);
+      filterStrings.push(`num_employees <= $${filterValues.length}`);
+    }
+
+    if (name) {
+      filterValues.push(`%${name}%`);
+      filterStrings.push(`name ILIKE $${filterValues.length}`);
+    }
+
+    if (filterStrings.length > 0) {
+      queryStr += " WHERE " + filterStrings.join(" AND ");
+    }
+
+    queryStr += " ORDER BY name";
+    const companiesRes = await db.query(queryStr, filterValues);
+    return companiesRes.rows;
   }
 
   /** Given a company handle, return data about company.
